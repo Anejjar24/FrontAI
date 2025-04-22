@@ -1,6 +1,6 @@
 'use client';
 /*eslint-disable*/
-
+import { AddIcon } from '@chakra-ui/icons';
 import Link from 'next/link';
 import MessageBoxChat from '@/components/MessageBox';
 import {
@@ -21,6 +21,10 @@ import {
 import { useEffect, useState } from 'react';
 import { MdAutoAwesome, MdBolt, MdEdit, MdPerson } from 'react-icons/md';
 import Bg from '../public/img/chat/bg-image.png';
+import { useRef } from 'react';
+
+
+// Dans le composant
 
 export default function Chat() {
   // Input States
@@ -57,6 +61,10 @@ export default function Chat() {
     { color: 'gray.500' },
     { color: 'whiteAlpha.600' },
   );
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+
 
   // Méthode améliorée pour traitement du fichier CSV
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -333,6 +341,7 @@ export default function Chat() {
             <Input
               type="file"
               accept=".csv"
+              ref={fileInputRef}
               onChange={handleFileUpload}
               mb="5px"
               w="100%"
@@ -341,7 +350,9 @@ export default function Chat() {
               p="10px"
               borderRadius="md"
               bg="whiteAlpha.100"
+              style={{ display: 'none' }}
             />
+            {/* 
             {csvLoaded && csvFile && (
               <Text 
                 fontSize="xs" 
@@ -352,15 +363,36 @@ export default function Chat() {
                 CSV chargé : {csvFile.name} ({(csvFile.size / 1024).toFixed(2)} KB)
               </Text>
             )}
+              */}
           </Box>
         </Flex>
-
+        {csvLoaded && csvFile && (
+  <Flex
+  ms={{ base: '0px', xl: '60px' }}
+          mt="10px"
+          justifySelf={'flex-end'}
+    border="1px solid"
+    borderColor={borderColor}
+    borderRadius="lg"
+    p="10px"
+    mb="10px"
+    alignItems="center"
+    bg="whiteAlpha.100"
+    maxW="100%"
+  >
+    <Icon as={MdBolt} color={brandColor} mr="8px" boxSize={5} />
+    <Text color={textColor} fontSize="sm" isTruncated>
+     {csvFile.name}
+    </Text>
+  </Flex>
+)}
         {/* Chat Input */}
         <Flex
           ms={{ base: '0px', xl: '60px' }}
           mt="10px"
           justifySelf={'flex-end'}
         >
+          
           <Input
             minH="54px"
             h="100%"
@@ -384,6 +416,7 @@ export default function Chat() {
             fontSize="sm"
             borderRadius="45px"
             ms="auto"
+            me="10px"
             w={{ base: '160px', md: '210px' }}
             h="54px"
             _hover={{
@@ -398,6 +431,31 @@ export default function Chat() {
             isLoading={loading ? true : false}
           >
             Générer
+          </Button>
+
+
+          <Button
+            variant="primary"
+            py="20px"
+            px="16px"
+            fontSize="sm"
+            borderRadius="50px"
+
+            ms="auto"
+            w={{ base: '70px', md: '70px' }}
+            h="54px"
+            _hover={{
+              boxShadow:
+                '0px 21px 27px -10px rgba(96, 60, 255, 0.48) !important',
+              bg: 'linear-gradient(15.46deg, #4A25E1 26.3%, #7B5AFF 86.4%) !important',
+              _disabled: {
+                bg: 'linear-gradient(15.46deg, #4A25E1 26.3%, #7B5AFF 86.4%)',
+              },
+            }}
+            onClick={() => fileInputRef.current?.click()}            isLoading={loading ? true : false}
+           
+          >
+           <AddIcon boxSize={4} />
           </Button>
         </Flex>
 
