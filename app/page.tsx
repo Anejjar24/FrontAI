@@ -30,7 +30,7 @@ export default function Chat() {
   // Input States
   const [inputOnSubmit, setInputOnSubmit] = useState<string>('');
   const [inputCode, setInputCode] = useState<string>('');
-  // Response message
+  // Response message - changer outputCode pour stocker la réponse complète
   const [outputCode, setOutputCode] = useState<string>('');
   // Model (but we'll only use CodeLlama from Django backend)
   const [model, setModel] = useState<string>('codellama');
@@ -40,6 +40,8 @@ export default function Chat() {
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [csvContent, setCsvContent] = useState<string>('');
   const [csvLoaded, setCsvLoaded] = useState<boolean>(false);
+  // State pour les erreurs
+  const [error, setError] = useState<string | null>(null);
   // Styling variables
   const borderColor = useColorModeValue('gray.200', 'whiteAlpha.200');
   const inputColor = useColorModeValue('navy.700', 'white');
@@ -52,6 +54,7 @@ export default function Chat() {
   const buttonBg = useColorModeValue('white', 'whiteAlpha.100');
   const gray = useColorModeValue('gray.500', 'white');
   const successColor = useColorModeValue('green.500', 'green.300');
+  const errorColor = useColorModeValue('red.500', 'red.300');
   const buttonShadow = useColorModeValue(
     '14px 27px 45px rgba(112, 144, 176, 0.2)',
     'none',
@@ -63,8 +66,6 @@ export default function Chat() {
   );
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-
 
   // Méthode améliorée pour traitement du fichier CSV
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -81,20 +82,17 @@ export default function Chat() {
         // Nettoyage des retours à la ligne pour garantir la compatibilité
         text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
         
-        // Détecter le séparateur (virgule ou point-virgule)
-        const hasComma = text.includes(',');
-        const hasSemicolon = text.includes(';');
-        
         console.log(`CSV chargé - Taille: ${text.length} caractères`);
         console.log(`Aperçu: ${text.substring(0, 100)}...`);
         
         setCsvContent(text);
         setCsvLoaded(true);
+        setError(null); // Réinitialiser les erreurs précédentes
       };
       
       reader.onerror = (error) => {
         console.error("Erreur de lecture du fichier:", error);
-        alert("Erreur lors de la lecture du fichier CSV");
+        setError("Erreur lors de la lecture du fichier CSV");
         setCsvLoaded(false);
       };
       
@@ -106,12 +104,13 @@ export default function Chat() {
     setInputOnSubmit(inputCode);
   
     if (!inputCode) {
-      alert('Veuillez entrer votre description.');
+      setError('Veuillez entrer votre description.');
       return;
     }
   
     setOutputCode('');
     setLoading(true);
+    setError(null);
   
     try {
       console.log("Envoi de la requête avec:");
@@ -131,25 +130,33 @@ export default function Chat() {
           csv: csvContent || '' // S'assurer qu'une chaîne vide est envoyée si pas de CSV
         }),
       });
+      
+      console.log(`Statut de la réponse: ${response.status}`);
   
       if (!response.ok) {
         const errorText = await response.text();
         console.error("Réponse d'erreur du serveur:", errorText);
-        throw new Error(`Le serveur a répondu avec le statut ${response.status}`);
+        throw new Error(`Le serveur a répondu avec le statut ${response.status}: ${errorText}`);
       }
   
       const data = await response.json();
-      console.log("Réponse reçue du serveur");
+      console.log("Réponse reçue du serveur:", data);
   
       if (data.error) {
-        throw new Error(data.error);
+        throw new Error(`${data.error}${data.details ? ': ' + data.details : ''}`);
       }
   
-      setOutputCode(data.response || '');
+      // Utilisez data.code au lieu de data.response
+      setOutputCode(data.code || '');
+      
+      // Si vous souhaitez également afficher l'explication
+      if (data.explanation) {
+        console.log("Explication:", data.explanation);
+        // Vous pourriez ajouter un état pour l'explication si vous voulez l'afficher
+      }
     } catch (error: any) {
-      console.error('Erreur:', error);
-      alert('Une erreur est survenue: ' + (error.message || String(error)));
-      setOutputCode('Erreur: ' + (error.message || String(error)));
+      console.error('Erreur complète:', error);
+      setError(error.message || String(error));
     } finally {
       setLoading(false);
     }
@@ -254,6 +261,25 @@ export default function Chat() {
             </AccordionItem>
           </Accordion>
         </Flex>
+        
+        {/* Affichage des erreurs */}
+        {error && (
+          <Flex 
+            w="100%" 
+            bg="red.50" 
+            border="1px solid" 
+            borderColor="red.200" 
+            borderRadius="md" 
+            p={3} 
+            mb={4}
+          >
+            <Icon as={MdBolt} color={errorColor} mr={2} />
+            <Text color={errorColor} fontSize="sm">
+              {error}
+            </Text>
+          </Flex>
+        )}
+        
         {/* Main Box */}
         <Flex
           direction="column"
@@ -352,47 +378,35 @@ export default function Chat() {
               bg="whiteAlpha.100"
               style={{ display: 'none' }}
             />
-            {/* 
-            {csvLoaded && csvFile && (
-              <Text 
-                fontSize="xs" 
-                color={successColor} 
-                mt="2px"
-                mb="8px"
-              >
-                CSV chargé : {csvFile.name} ({(csvFile.size / 1024).toFixed(2)} KB)
-              </Text>
-            )}
-              */}
           </Box>
         </Flex>
         {csvLoaded && csvFile && (
-  <Flex
-  ms={{ base: '0px', xl: '60px' }}
-          mt="10px"
-          justifySelf={'flex-end'}
-    border="1px solid"
-    borderColor={borderColor}
-    borderRadius="lg"
-    p="10px"
-    mb="10px"
-    alignItems="center"
-    bg="whiteAlpha.100"
-    maxW="100%"
-  >
-    <Icon as={MdBolt} color={brandColor} mr="8px" boxSize={5} />
-    <Text color={textColor} fontSize="sm" isTruncated>
-     {csvFile.name}
-    </Text>
-  </Flex>
-)}
+          <Flex
+            ms={{ base: '0px', xl: '60px' }}
+            mt="10px"
+            justifySelf={'flex-end'}
+            border="1px solid"
+            borderColor={borderColor}
+            borderRadius="lg"
+            p="10px"
+            mb="10px"
+            alignItems="center"
+            bg="whiteAlpha.100"
+            maxW="100%"
+          >
+            <Icon as={MdBolt} color={brandColor} mr="8px" boxSize={5} />
+            <Text color={textColor} fontSize="sm" isTruncated>
+              {csvFile.name}
+            </Text>
+          </Flex>
+        )}
+        
         {/* Chat Input */}
         <Flex
           ms={{ base: '0px', xl: '60px' }}
           mt="10px"
           justifySelf={'flex-end'}
         >
-          
           <Input
             minH="54px"
             h="100%"
@@ -408,6 +422,7 @@ export default function Chat() {
             _placeholder={placeholderColor}
             placeholder="Décrivez le code Python que vous souhaitez générer..."
             onChange={handleChange}
+            value={inputCode}
           />
           <Button
             variant="primary"
@@ -428,11 +443,11 @@ export default function Chat() {
               },
             }}
             onClick={handleGenerate}
-            isLoading={loading ? true : false}
+            isLoading={loading}
+            disabled={loading}
           >
             Générer
           </Button>
-
 
           <Button
             variant="primary"
@@ -440,7 +455,6 @@ export default function Chat() {
             px="16px"
             fontSize="sm"
             borderRadius="50px"
-
             ms="auto"
             w={{ base: '70px', md: '70px' }}
             h="54px"
@@ -452,10 +466,10 @@ export default function Chat() {
                 bg: 'linear-gradient(15.46deg, #4A25E1 26.3%, #7B5AFF 86.4%)',
               },
             }}
-            onClick={() => fileInputRef.current?.click()}            isLoading={loading ? true : false}
-           
+            onClick={() => fileInputRef.current?.click()}
+            disabled={loading}
           >
-           <AddIcon boxSize={4} />
+            <AddIcon boxSize={4} />
           </Button>
         </Flex>
 
