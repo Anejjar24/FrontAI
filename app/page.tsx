@@ -24,14 +24,14 @@ import Bg from '../public/img/chat/bg-image.png';
 import { useRef } from 'react';
 
 
-// Dans le composant
-
 export default function Chat() {
   // Input States
   const [inputOnSubmit, setInputOnSubmit] = useState<string>('');
   const [inputCode, setInputCode] = useState<string>('');
-  // Response message - changer outputCode pour stocker la réponse complète
+  // Response message
   const [outputCode, setOutputCode] = useState<string>('');
+  // Results from execution (optional)
+  const [executionResults, setExecutionResults] = useState<any>(null);
   // Model (but we'll only use CodeLlama from Django backend)
   const [model, setModel] = useState<string>('codellama');
   // Loading state
@@ -113,22 +113,27 @@ export default function Chat() {
     setError(null);
   
     try {
-      console.log("Envoi de la requête avec:");
-      console.log(`- Prompt: ${inputCode.substring(0, 50)}...`);
-      console.log(`- CSV présent: ${csvContent ? 'Oui' : 'Non'}`);
-      if (csvContent) {
-        console.log(`- Taille CSV: ${csvContent.length} caractères`);
+      console.log("Préparation de la requête...");
+      
+      // Création d'un FormData pour envoyer le fichier
+      const formData = new FormData();
+      
+      // Ajout du query/prompt
+      formData.append('data', JSON.stringify({ query: inputCode }));
+      
+      // Ajout du fichier CSV s'il existe
+      if (csvFile) {
+        formData.append('csv_file', csvFile);
+        console.log(`Fichier CSV joint: ${csvFile.name}`);
       }
       
-      const response = await fetch('http://localhost:8000/generate/', {
+      // URL du backend - utilisation de l'URL qui correspond à votre backend Django
+      const url = 'http://localhost:8000/api/generate-code/';
+      console.log(`Envoi vers: ${url}`);
+      
+      const response = await fetch(url, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          prompt: inputCode, 
-          csv: csvContent || '' // S'assurer qu'une chaîne vide est envoyée si pas de CSV
-        }),
+        body: formData, // Utilisation de FormData au lieu de JSON
       });
       
       console.log(`Statut de la réponse: ${response.status}`);
@@ -136,23 +141,29 @@ export default function Chat() {
       if (!response.ok) {
         const errorText = await response.text();
         console.error("Réponse d'erreur du serveur:", errorText);
-        throw new Error(`Le serveur a répondu avec le statut ${response.status}: ${errorText}`);
+        throw new Error(`Le serveur a répondu avec le statut ${response.status}: ${errorText.substring(0, 100)}`);
       }
   
       const data = await response.json();
       console.log("Réponse reçue du serveur:", data);
   
-      if (data.error) {
-        throw new Error(`${data.error}${data.details ? ': ' + data.details : ''}`);
+      if (!data.success) {
+        throw new Error(data.error || 'Une erreur inconnue est survenue');
       }
   
-      // Utilisez data.code au lieu de data.response
+      // Mettre à jour le code généré
       setOutputCode(data.code || '');
       
-      // Si vous souhaitez également afficher l'explication
-      if (data.explanation) {
-        console.log("Explication:", data.explanation);
-        // Vous pourriez ajouter un état pour l'explication si vous voulez l'afficher
+      // Mettre à jour les résultats d'exécution s'ils existent
+      if (data.result) {
+        try {
+          // Tenter de parser le résultat comme JSON
+          const parsedResult = typeof data.result === 'string' ? JSON.parse(data.result) : data.result;
+          setExecutionResults(parsedResult);
+        } catch (e) {
+          // Si le parsing échoue, utiliser la chaîne brute
+          setExecutionResults({ output: data.result, errors: '', figures: [] });
+        }
       }
     } catch (error: any) {
       console.error('Erreur complète:', error);
@@ -354,6 +365,82 @@ export default function Chat() {
             </Flex>
             <MessageBoxChat output={outputCode} />
           </Flex>
+          
+          {/* Affichage des résultats d'exécution si disponibles */}
+          {executionResults && (
+            <Flex 
+              direction="column" 
+              w="100%" 
+              mt="20px" 
+              border="1px solid" 
+              borderColor={borderColor}
+              borderRadius="14px"
+              p="15px"
+              ms="60px"
+            >
+              <Text color={textColor} fontWeight="600" fontSize="md" mb="10px">
+                Résultats d'exécution:
+              </Text>
+              
+              {executionResults.errors && executionResults.errors.length > 0 && (
+                <Box mb="10px">
+                  <Text color={errorColor} fontWeight="500" fontSize="sm" mb="5px">
+                    Erreurs:
+                  </Text>
+                  <Box 
+                    bg="red.50" 
+                    borderRadius="md" 
+                    p="10px" 
+                    fontSize="xs" 
+                    fontFamily="monospace"
+                    whiteSpace="pre-wrap"
+                  >
+                    {executionResults.errors}
+                  </Box>
+                </Box>
+              )}
+              
+              {executionResults.output && (
+                <Box mb="10px">
+                  <Text color={textColor} fontWeight="500" fontSize="sm" mb="5px">
+                    Sortie console:
+                  </Text>
+                  <Box 
+                    bg="gray.50" 
+                    borderRadius="md" 
+                    p="10px" 
+                    fontSize="xs" 
+                    fontFamily="monospace"
+                    whiteSpace="pre-wrap"
+                  >
+                    {executionResults.output}
+                  </Box>
+                </Box>
+              )}
+              
+              {executionResults.figures && executionResults.figures.length > 0 && (
+                <Box>
+                  <Text color={textColor} fontWeight="500" fontSize="sm" mb="5px">
+                    Visualisations:
+                  </Text>
+                  <Flex flexWrap="wrap" gap="10px">
+                    {executionResults.figures.map((figPath, index) => (
+                      <Box 
+                        key={index} 
+                        borderRadius="md" 
+                        overflow="hidden" 
+                        maxW="300px"
+                        border="1px solid"
+                        borderColor="gray.200"
+                      >
+                        <Img src={figPath} alt={`Figure ${index + 1}`} />
+                      </Box>
+                    ))}
+                  </Flex>
+                </Box>
+              )}
+            </Flex>
+          )}
         </Flex>
 
         {/* CSV Upload Section with feedback */}
