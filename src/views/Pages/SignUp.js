@@ -16,17 +16,17 @@ import {
 import React, { useState } from "react";
 import { FaApple, FaFacebook, FaGoogle } from "react-icons/fa";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
 
 function SignUp() {
   const router = useRouter();
   const toast = useToast();
+  const { register } = useAuth();
   const [name, setName] = useState("");
   const [username, setUserName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-
-
 
   const bgForm = useColorModeValue("white", "navy.800");
   const titleColor = useColorModeValue("gray.700", "blue.500");
@@ -40,22 +40,26 @@ function SignUp() {
   };
   
   const handleSignUp = async () => {
+    // Basic validation
+    if (!name || !username || !email || !password) {
+      toast({
+        title: "Error",
+        description: "All fields are required",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
-      const response = await fetch('http://localhost:8000/authentication/api/register/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ name,username, email, password }),
-      });
-
-      const data = await response.json();
+      const success = await register(name, username, email, password);
       
-      if (response.ok) {
+      if (success) {
         toast({
           title: "Success",
-          description: data.message,
+          description: "Registration successful. Please check your email to activate your account.",
           status: "success",
           duration: 5000,
           isClosable: true,
@@ -64,7 +68,7 @@ function SignUp() {
       } else {
         toast({
           title: "Error",
-          description: data.message,
+          description: "Registration failed. Please try again.",
           status: "error",
           duration: 5000,
           isClosable: true,
@@ -175,7 +179,7 @@ function SignUp() {
               fontSize='sm'
               ms='4px'
               type='text'
-              placeholder='Your full name'
+              placeholder='Your username'
               mb='24px'
               size='lg'
               value={username}

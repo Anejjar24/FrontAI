@@ -57,7 +57,7 @@ export default function SidebarDocs() {
           Go unlimited with PRO
         </Text>
         <Text fontSize="14px" color={'white'} mb="14px" textAlign="center">
-          Get your AI Project to another level and start doing more with Horizon
+          Get your AI Project to another level and start doing more with Chat UI
           AI Template PRO!
         </Text>
       </Flex>

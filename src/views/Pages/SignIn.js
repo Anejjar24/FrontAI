@@ -16,10 +16,12 @@ import {
   useToast,
 } from "@chakra-ui/react";
 import { FaApple, FaFacebook, FaGoogle } from "react-icons/fa";
+import { useAuth } from "@/contexts/AuthContext";
 
 function SignIn() {
   const router = useRouter();
   const toast = useToast();
+  const { login } = useAuth();
   const [username, setUserName] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -39,24 +41,25 @@ function SignIn() {
   };
   
   const handleSignIn = async () => {
+    if (!username || !password) {
+      toast({
+        title: "Error",
+        description: "Please enter both username and password",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+    
     setIsLoading(true);
     try {
-      const response = await fetch('http://localhost:8000/authentication/api/login/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ username, password }),
-      });
-  
-      const data = await response.json();
+      const success = await login(username, password);
       
-      if (response.ok) {
-        // Stocker le token dans localStorage
-        localStorage.setItem('token', data.token);
+      if (success) {
         toast({
           title: "Success",
-          description: data.message,
+          description: "Login successful",
           status: "success",
           duration: 3000,
           isClosable: true,
@@ -65,7 +68,7 @@ function SignIn() {
       } else {
         toast({
           title: "Error",
-          description: data.message,
+          description: "Invalid credentials",
           status: "error",
           duration: 3000,
           isClosable: true,
@@ -121,10 +124,6 @@ function SignIn() {
             >
               Sign In
             </Text>
-
-            
-
-           
 
             <FormControl>
               <FormLabel fontSize="md" fontWeight="normal">
