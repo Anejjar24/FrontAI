@@ -14,6 +14,7 @@ import {
 } from '@chakra-ui/react';
 import { MdChat, MdDelete, MdAdd } from 'react-icons/md';
 import { useRouter } from 'next/navigation';
+import {useAuth} from "@/contexts/AuthContext";
 
 // Interface pour le type de conversation
 interface Conversation {
@@ -27,6 +28,7 @@ const ConversationList: React.FC = () => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const { token } = useAuth(); //hadi zdtha
   const router = useRouter();
   const toast = useToast();
 
@@ -42,8 +44,9 @@ const ConversationList: React.FC = () => {
     try {
       const response = await fetch('http://localhost:8000/api/conversations/', {
         method: 'GET',
-        credentials: 'include', // Important pour les cookies d'authentification
+        //credentials: 'include', // Important pour les cookies d'authentification
         headers: {
+          'Authorization': `Token ${token}`,
           'Content-Type': 'application/json',
         },
       });
@@ -78,8 +81,9 @@ const ConversationList: React.FC = () => {
     try {
       const response = await fetch('http://localhost:8000/api/conversations/create/', {
         method: 'POST',
-        credentials: 'include',
+        //credentials: 'include',
         headers: {
+          'Authorization': `Token ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -96,7 +100,7 @@ const ConversationList: React.FC = () => {
       if (data.success) {
         // Ajouter la nouvelle conversation à la liste et rediriger vers celle-ci
         setConversations([data.conversation, ...conversations]);
-        router.push(`/chat?conversation=${data.conversation.id}`);
+        router.push(`/conversation?conversation=${data.conversation.id}`);
       } else {
         throw new Error(data.error || 'Erreur lors de la création de la conversation');
       }
@@ -118,8 +122,9 @@ const ConversationList: React.FC = () => {
     try {
       const response = await fetch(`http://localhost:8000/api/conversations/${id}/delete/`, {
         method: 'DELETE',
-        credentials: 'include',
+        //credentials: 'include',
         headers: {
+          'Authorization': `Token ${token}`,
           'Content-Type': 'application/json',
         },
       });
@@ -155,9 +160,14 @@ const ConversationList: React.FC = () => {
   };
 
   // Fonction pour ouvrir une conversation
+  /*const openConversation = (id: number) => {
+    router.push(`/`);
+  };*/
+
   const openConversation = (id: number) => {
-    router.push(`/chat?conversation=${id}`);
+    router.push(`/conversation?conversation=${id}`);
   };
+  
 
   useEffect(() => {
     fetchConversations();
