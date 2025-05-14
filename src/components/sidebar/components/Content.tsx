@@ -26,7 +26,7 @@ function SidebarContent(props: { routes: any[]; [x: string]: any }) {
       </Box>
 
       <Box ps="20px" pe={{ lg: '16px', '2xl': '16px' }} mt="60px" mb="40px">
-        <SidebarCard />
+       
       </Box>
     </Flex>
   );

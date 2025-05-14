@@ -195,34 +195,50 @@ export default function Chat() {
 // Voici la version modifiée pour permettre l'exécution sans fichier CSV
 
 // Fonction améliorée pour exécuter le code généré
+
+// Fonction améliorée pour exécuter le code généré
+
+
+// Fonction améliorée pour exécuter le code généré
+
+
 const handleExecuteCode = async () => {
-  if (!outputCode) {
+  if (!outputCode && !localStorage.getItem('code_to_run')) {
     setError('Aucun code à exécuter.');
     return;
   }
   
   setExecutingCode(true);
   setError(null);
+  setExecutionResults(null); // Réinitialiser les résultats précédents
   
   try {
     console.log("Préparation de l'exécution du code...");
     
-    // Récupération du code à exécuter depuis localStorage
-    const codeToRun = localStorage.getItem('code_to_run') || outputCode.replace(/```python|```/g, '').trim();
-    console.log("Code récupéré pour exécution:", codeToRun.substring(0, 100) + "...");
+    // Récupération du code à exécuter depuis localStorage ou du code affiché
+    let codeToRun = localStorage.getItem('code_to_run');
+    
+    // Si pas de code stocké, nettoyer le code affiché
+    if (!codeToRun && outputCode) {
+      codeToRun = outputCode.replace(/```python|```/g, '').trim();
+    }
+    
+    if (!codeToRun) {
+      throw new Error("Aucun code valide à exécuter");
+    }
+    
+    console.log("Code préparé pour exécution:", codeToRun.substring(0, 100) + "...");
     
     // Création d'un FormData pour envoyer le fichier et le code
     const formData = new FormData();
     
     // Ajout du code à exécuter
-    formData.append('data', JSON.stringify({ 
-      code: codeToRun,
-      query: inputOnSubmit
-    }));
+    formData.append('data', JSON.stringify({ code: codeToRun }));
     
     // Ajout du fichier CSV s'il existe
     if (csvFile) {
       formData.append('csv_file', csvFile);
+      console.log(`Fichier CSV inclus: ${csvFile.name}`);
     }
     
     // URL du backend pour l'exécution du code
@@ -249,20 +265,29 @@ const handleExecuteCode = async () => {
       throw new Error(data.error || 'Une erreur inconnue est survenue');
     }
 
-    // Mettre à jour les résultats d'exécution
+    // Traitement des résultats d'exécution
     if (data.result) {
       try {
+        // Afficher les données brutes pour le débogage
+        console.log("Données brutes reçues:", data.result);
+        
         // Tenter de parser le résultat comme JSON
         const parsedResult = typeof data.result === 'string' ? JSON.parse(data.result) : data.result;
+        console.log("Résultats parsés:", parsedResult);
+        
         setExecutionResults(parsedResult);
         
-        // Changer vers l'onglet approprié
-        if (parsedResult.errors && parsedResult.errors.length > 0) {
+        // Afficher les détails des figures pour le débogage
+        if (parsedResult.figures && parsedResult.figures.length > 0) {
+          console.log(`${parsedResult.figures.length} graphiques reçus!`);
+          console.log("Premier graphique URL taille:", parsedResult.figures[0].substring(0, 50) + "...");
+          
+          // Si des graphiques sont présents, afficher d'abord l'onglet des graphiques
+          setActiveTab(2);
+        } else if (parsedResult.output && parsedResult.output.trim().length > 0) {
+          setActiveTab(1); // Onglet console pour voir la sortie
+        } else if (parsedResult.errors && parsedResult.errors.trim().length > 0) {
           setActiveTab(1); // Onglet console pour voir les erreurs
-        } else if (parsedResult.figures && parsedResult.figures.length > 0) {
-          setActiveTab(2); // Onglet des graphiques
-        } else {
-          setActiveTab(1); // Onglet de console par défaut
         }
       } catch (e) {
         console.error("Erreur de parsing du résultat:", e);
@@ -270,6 +295,10 @@ const handleExecuteCode = async () => {
         setExecutionResults({ output: String(data.result), errors: 'Erreur de parsing: ' + e.message, figures: [] });
         setActiveTab(1); // Onglet de console
       }
+    } else {
+      // S'il n'y a pas de résultat, mettre un message par défaut
+      setExecutionResults({ output: "Aucune sortie générée", errors: "", figures: [] });
+      setActiveTab(1);
     }
   } catch (error) {
     console.error('Erreur d\'exécution:', error);
@@ -278,14 +307,33 @@ const handleExecuteCode = async () => {
     } else {
       setError(String(error));
     }
+    // Afficher l'onglet console en cas d'erreur
+    setActiveTab(1);
   } finally {
     setExecutingCode(false);
   }
 };
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setInputCode(event.target.value);
   };
+
+
+  
 
   return (
     <Flex
@@ -570,145 +618,178 @@ const handleExecuteCode = async () => {
                   </TabPanel>
                   
                   {/* Onglet Console */}
-                  <TabPanel p="0">
-                    {executionResults ? (
-                      <Flex direction="column" w="100%" p="15px">
-                        {/* Erreurs */}
-                        {executionResults.errors && executionResults.errors.length > 0 && (
-                          <Box mb="15px">
-                            <Text color={errorColor} fontWeight="600" fontSize="sm" mb="5px">
-                              Erreurs:
-                            </Text>
-                            <Box 
-                              bg="red.50" 
-                              borderRadius="md" 
-                              p="10px" 
-                              fontSize="sm" 
-                              fontFamily="monospace"
-                              whiteSpace="pre-wrap"
-                              maxH="200px"
-                              overflowY="auto"
-                            >
-                              {executionResults.errors}
-                            </Box>
-                          </Box>
-                        )}
-                        
-                        {/* Sortie */}
-                        {executionResults.output && (
-                          <Box>
-                            <Text color={textColor} fontWeight="600" fontSize="sm" mb="5px">
-                              Sortie:
-                            </Text>
-                            <Box 
-                              bg="gray.50" 
-                              borderRadius="md" 
-                              p="10px" 
-                              fontSize="sm" 
-                              fontFamily="monospace"
-                              whiteSpace="pre-wrap"
-                              maxH="400px"
-                              overflowY="auto"
-                            >
-                              {executionResults.output}
-                            </Box>
-                          </Box>
-                        )}
-                        
-                        {/* Message si pas de sortie */}
-                        {!executionResults.output && !executionResults.errors && (
-                          <Text color={gray} fontSize="sm" p="20px" textAlign="center">
-                            L'exécution n'a généré aucune sortie textuelle.
-                          </Text>
-                        )}
-                      </Flex>
-                    ) : (
-                      <Flex 
-                        justify="center" 
-                        align="center" 
-                        direction="column" 
-                        p="40px"
-                      >
-                        <Text color={gray} fontSize="sm" mb="10px">
-                          Exécutez le code pour voir les résultats
-                        </Text>
-                        <Button
-                          leftIcon={<Icon as={MdPlayArrow} />}
-                          colorScheme="teal"
-                          variant="outline"
-                          size="sm"
-                          onClick={handleExecuteCode}
-                          isLoading={executingCode}
-                        >
-                          Exécuter
-                        </Button>
-                      </Flex>
-                    )}
-                  </TabPanel>
+                
                   
-                  {/* Onglet Graphiques */}
-                  <TabPanel p="0">
-                    {executionResults && executionResults.figures && executionResults.figures.length > 0 ? (
-                      <Flex direction="column" w="100%" p="15px">
-                        <Text color={textColor} fontWeight="600" fontSize="md" mb="15px">
-                          Visualisations générées:
-                        </Text>
-                        <Flex flexWrap="wrap" gap="20px" justify="center">
-                          {executionResults.figures.map((figPath, index) => (
-                            <Box 
-                              key={index} 
-                              borderRadius="lg" 
-                              overflow="hidden" 
-                              border="1px solid"
-                              borderColor="gray.200"
-                              boxShadow="sm"
-                              maxW="100%"
-                              w={{ base: "100%", md: "45%" }}
-                            >
-                              <Img 
-                                src={figPath} 
-                                alt={`Figure ${index + 1}`} 
-                                w="100%" 
-                                h="auto"
-                              />
-                              <Box p="10px" bg="gray.50">
-                                <Text color={textColor} fontSize="sm" fontWeight="500">
-                                  Figure {index + 1}
-                                </Text>
-                              </Box>
-                            </Box>
-                          ))}
-                        </Flex>
-                      </Flex>
-                    ) : (
-                      <Flex 
-                        justify="center" 
-                        align="center" 
-                        direction="column" 
-                        p="40px"
-                      >
-                        <Text color={gray} fontSize="sm" mb="10px">
-                          {executingCode ? "Génération des graphiques..." : 
-                          (executionResults ? "Aucun graphique généré par ce code" : "Exécutez le code pour voir les graphiques")}
-                        </Text>
-                        {executingCode ? (
-                          <Spinner color="teal.500" size="md" />
-                        ) : (
-                          !executionResults && (
-                            <Button
-                              leftIcon={<Icon as={MdPlayArrow} />}
-                              colorScheme="teal"
-                              variant="outline"
-                              size="sm"
-                              onClick={handleExecuteCode}
-                            >
-                              Exécuter
-                            </Button>
-                          )
-                        )}
-                      </Flex>
-                    )}
-                  </TabPanel>
+
+                  {/* Onglet Console */}
+<TabPanel p="0">
+  {executionResults ? (
+    <Flex direction="column" w="100%" p="15px">
+      {/* Sortie - Mettre la sortie en premier */}
+      {executionResults.output && executionResults.output.trim().length > 0 && (
+        <Box mb="15px">
+          <Text color={textColor} fontWeight="600" fontSize="sm" mb="5px">
+            Sortie:
+          </Text>
+          <Box 
+            bg="gray.50" 
+            borderRadius="md" 
+            p="10px" 
+            fontSize="sm" 
+            fontFamily="monospace"
+            whiteSpace="pre-wrap"
+            maxH="400px"
+            overflowY="auto"
+          >
+            {executionResults.output}
+          </Box>
+        </Box>
+      )}
+      
+      {/* Erreurs */}
+      {executionResults.errors && executionResults.errors.trim().length > 0 && (
+        <Box mb="15px">
+          <Text color={errorColor} fontWeight="600" fontSize="sm" mb="5px">
+            Erreurs:
+          </Text>
+          <Box 
+            bg="red.50" 
+            borderRadius="md" 
+            p="10px" 
+            fontSize="sm" 
+            fontFamily="monospace"
+            whiteSpace="pre-wrap"
+            maxH="200px"
+            overflowY="auto"
+          >
+            {executionResults.errors}
+          </Box>
+        </Box>
+      )}
+      
+      {/* Message si pas de sortie ni d'erreurs */}
+      {(!executionResults.output || executionResults.output.trim().length === 0) && 
+       (!executionResults.errors || executionResults.errors.trim().length === 0) && (
+        <Text color={gray} fontSize="sm" p="20px" textAlign="center">
+          L'exécution n'a généré aucune sortie textuelle.
+        </Text>
+      )}
+    </Flex>
+  ) : (
+    <Flex 
+      justify="center" 
+      align="center" 
+      direction="column" 
+      p="40px"
+    >
+      <Text color={gray} fontSize="sm" mb="10px">
+        Exécutez le code pour voir les résultats
+      </Text>
+      <Button
+        leftIcon={<Icon as={MdPlayArrow} />}
+        colorScheme="teal"
+        variant="outline"
+        size="sm"
+        onClick={handleExecuteCode}
+        isLoading={executingCode}
+      >
+        Exécuter
+      </Button>
+    </Flex>
+  )}
+</TabPanel>
+
+
+
+
+
+
+
+
+
+
+
+{/* Onglet Graphiques */}
+<TabPanel p="0">
+  {executionResults && executionResults.figures && executionResults.figures.length > 0 ? (
+    <Flex direction="column" w="100%" p="15px">
+      <Text color={textColor} fontWeight="600" fontSize="md" mb="15px">
+        Visualisations générées ({executionResults.figures.length}):
+      </Text>
+      <Flex flexWrap="wrap" gap="20px" justify="center">
+        {executionResults.figures.map((figPath, index) => (
+          <Box 
+            key={index} 
+            borderRadius="lg" 
+            overflow="hidden" 
+            border="1px solid"
+            borderColor="gray.200"
+            boxShadow="md"
+            maxW="100%"
+            w={{ base: "100%", md: "90%" }}
+          >
+            <Img 
+              src={figPath} 
+              alt={`Figure ${index + 1}`} 
+              w="100%" 
+              h="auto"
+            />
+            <Box p="10px" bg="gray.50">
+              <Text color={textColor} fontSize="sm" fontWeight="500">
+                Figure {index + 1}
+              </Text>
+            </Box>
+          </Box>
+        ))}
+      </Flex>
+    </Flex>
+  ) : (
+    <Flex 
+      justify="center" 
+      align="center" 
+      direction="column" 
+      p="40px"
+    >
+      <Text color={gray} fontSize="sm" mb="10px">
+        {executingCode ? "Génération des graphiques..." : 
+        (executionResults ? "Aucun graphique généré par ce code" : "Exécutez le code pour voir les graphiques")}
+      </Text>
+      {executingCode ? (
+        <Spinner color="teal.500" size="md" />
+      ) : (
+        !executionResults && (
+          <Button
+            leftIcon={<Icon as={MdPlayArrow} />}
+            colorScheme="teal"
+            variant="outline"
+            size="sm"
+            onClick={handleExecuteCode}
+          >
+            Exécuter
+          </Button>
+        )
+      )}
+    </Flex>
+  )}
+</TabPanel>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                 </TabPanels>
               </Tabs>
             </Box>
