@@ -4,6 +4,8 @@ Frontend du projet PFA — cette application utilise **Vite + React**.
 Ce guide vous montre comment cloner, installer les dépendances et lancer le projet localement.
 
 ---
+## 🎬 Démonstartion video
+https://github.com/user-attachments/assets/a285767f-d1a5-4b21-8899-1752601bc0c3
 
 ## 🔧 Étapes de démarrage
 
