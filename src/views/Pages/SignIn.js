@@ -36,6 +36,32 @@ function SignIn() {
   const handleSignUp = () => {
     router.push("/auth/register");
   };
+
+  //Redirection vers une nouvelle conversation
+  const createConversation = async (token) => {
+    const response = await fetch('http://localhost:8000/api/conversations/create/', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Token ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ title: 'Nouvelle conversation' }),
+    });
+  
+    const data = await response.json();
+    if (data.success) {
+      router.push(`/conversation?conversation=${data.conversation.id}`);
+    } else {
+      toast({
+        title: "Erreur",
+        description: "Impossible de créer la conversation.",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  };
+  
   const handlePasswordReset = () => {
     router.push("/auth/forgot-password");
   };
@@ -64,7 +90,13 @@ function SignIn() {
           duration: 3000,
           isClosable: true,
         });
-        router.push("/");
+        //router.push("/");
+        const token = localStorage.getItem("token");
+        if (token) {
+          await createConversation(token); // ✅ Crée une nouvelle conversation et redirige
+        } else {
+          router.push("/"); // fallback si pas de token
+        }
       } else {
         toast({
           title: "Error",
